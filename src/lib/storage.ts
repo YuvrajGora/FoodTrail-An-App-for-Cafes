@@ -19,12 +19,22 @@ export async function setSavedPlaceIds(ids: string[]): Promise<void> {
   await AsyncStorage.setItem(SAVED_KEY, JSON.stringify([...new Set(ids)]));
 }
 
+function isValidVisit(item: unknown): item is Visit {
+  if (!item || typeof item !== 'object') return false;
+  const v = item as Record<string, unknown>;
+  return (
+    typeof v.id === 'string' &&
+    typeof v.placeName === 'string' &&
+    typeof v.visitDate === 'string'
+  );
+}
+
 export async function getVisits(): Promise<Visit[]> {
   try {
     const raw = await AsyncStorage.getItem(VISITS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(isValidVisit) : [];
   } catch {
     return [];
   }

@@ -36,39 +36,54 @@ export function FoodTrailProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleSaved = useCallback(async (placeId: string) => {
-    const next = savedIds.includes(placeId) ? savedIds.filter((id) => id !== placeId) : [...savedIds, placeId];
-    setSavedIds(next);
+    let next: string[] = [];
+    setSavedIds((prev) => {
+      next = prev.includes(placeId) ? prev.filter((id) => id !== placeId) : [...prev, placeId];
+      return next;
+    });
     await setSavedPlaceIds(next);
-  }, [savedIds]);
+  }, []);
 
   const removeSaved = useCallback(async (placeId: string) => {
-    const next = savedIds.filter((id) => id !== placeId);
-    setSavedIds(next);
+    let next: string[] = [];
+    setSavedIds((prev) => {
+      next = prev.filter((id) => id !== placeId);
+      return next;
+    });
     await setSavedPlaceIds(next);
-  }, [savedIds]);
+  }, []);
 
   const isSaved = useCallback((placeId: string) => {
     return savedIds.includes(placeId);
   }, [savedIds]);
 
   const addVisit = useCallback(async (visit: Visit) => {
-    const next = [visit, ...visits];
-    setVisitsState(next);
+    let next: Visit[] = [];
+    setVisitsState((prev) => {
+      next = [visit, ...prev];
+      return next;
+    });
     await setVisits(next);
     // The seed catalogue remains immutable. Visit records are tracked separately so repeat visits are supported.
-  }, [visits]);
+  }, []);
 
   const updateVisit = useCallback(async (updatedVisit: Visit) => {
-    const next = visits.map((v) => (v.id === updatedVisit.id ? { ...updatedVisit, updatedAt: new Date().toISOString() } : v));
-    setVisitsState(next);
+    let next: Visit[] = [];
+    setVisitsState((prev) => {
+      next = prev.map((v) => (v.id === updatedVisit.id ? { ...updatedVisit, updatedAt: new Date().toISOString() } : v));
+      return next;
+    });
     await setVisits(next);
-  }, [visits]);
+  }, []);
 
   const deleteVisit = useCallback(async (visitId: string) => {
-    const next = visits.filter((v) => v.id !== visitId);
-    setVisitsState(next);
+    let next: Visit[] = [];
+    setVisitsState((prev) => {
+      next = prev.filter((v) => v.id !== visitId);
+      return next;
+    });
     await setVisits(next);
-  }, [visits]);
+  }, []);
 
   const value = useMemo(
     () => ({
