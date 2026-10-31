@@ -238,14 +238,27 @@ export default function PlaceDetailScreen() {
                     </Text>
                   ) : null}
 
-                  {v.spend !== null ? (
-                    <Text style={styles.visitSpend}>
-                      Total Bill: ₹{v.spend}
-                      {v.personalShare !== null ? ` (Your share: ₹${v.personalShare})` : ''}
-                    </Text>
-                  ) : null}
-
                   {v.notes ? <Text style={styles.visitNotes}>&ldquo;{v.notes}&rdquo;</Text> : null}
+
+                  <View style={styles.visitEntryBottom}>
+                    {v.spend !== null ? (
+                      <Text style={styles.visitSpend}>
+                        Bill: ₹{v.spend}
+                        {v.personalShare !== null ? ` (Share: ₹${v.personalShare})` : ''}
+                      </Text>
+                    ) : (
+                      <View />
+                    )}
+
+                    <Pressable
+                      style={styles.editVisitInlineBtn}
+                      onPress={() => router.push({ pathname: '/add-visit', params: { visitId: v.id } })}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="create-outline" size={13} color={colors.accent} />
+                      <Text style={styles.editVisitInlineText}>Edit Entry</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -596,6 +609,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontStyle: 'italic',
     lineHeight: 16,
+  },
+  visitEntryBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: 4,
+  },
+  editVisitInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  editVisitInlineText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
   },
   unvisitedNotice: {
     flexDirection: 'row',

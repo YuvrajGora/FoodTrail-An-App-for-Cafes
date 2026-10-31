@@ -6,7 +6,10 @@ const VISITS_KEY = 'foodtrail:visits:v1';
 
 export async function getSavedPlaceIds(): Promise<string[]> {
   try {
-    return JSON.parse((await AsyncStorage.getItem(SAVED_KEY)) ?? '[]') as string[];
+    const raw = await AsyncStorage.getItem(SAVED_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
   }
@@ -18,7 +21,10 @@ export async function setSavedPlaceIds(ids: string[]): Promise<void> {
 
 export async function getVisits(): Promise<Visit[]> {
   try {
-    return JSON.parse((await AsyncStorage.getItem(VISITS_KEY)) ?? '[]') as Visit[];
+    const raw = await AsyncStorage.getItem(VISITS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }

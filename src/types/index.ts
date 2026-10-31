@@ -24,9 +24,12 @@ export type Visit = {
   visitDate: string;
   spend: number | null;
   personalShare: number | null;
+  partySize?: number | null;
   rating: number | null;
   items: string;
   companions: string;
   notes: string;
+  photos?: string[];
   createdAt: string;
+  updatedAt?: string;
 };

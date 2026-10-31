@@ -9,7 +9,11 @@ type FoodTrailContextValue = {
   visits: Visit[];
   ready: boolean;
   toggleSaved: (placeId: string) => Promise<void>;
+  removeSaved: (placeId: string) => Promise<void>;
+  isSaved: (placeId: string) => boolean;
   addVisit: (visit: Visit) => Promise<void>;
+  updateVisit: (visit: Visit) => Promise<void>;
+  deleteVisit: (visitId: string) => Promise<void>;
 };
 
 const FoodTrailContext = createContext<FoodTrailContextValue | null>(null);
@@ -37,6 +41,16 @@ export function FoodTrailProvider({ children }: { children: React.ReactNode }) {
     await setSavedPlaceIds(next);
   }, [savedIds]);
 
+  const removeSaved = useCallback(async (placeId: string) => {
+    const next = savedIds.filter((id) => id !== placeId);
+    setSavedIds(next);
+    await setSavedPlaceIds(next);
+  }, [savedIds]);
+
+  const isSaved = useCallback((placeId: string) => {
+    return savedIds.includes(placeId);
+  }, [savedIds]);
+
   const addVisit = useCallback(async (visit: Visit) => {
     const next = [visit, ...visits];
     setVisitsState(next);
@@ -44,7 +58,33 @@ export function FoodTrailProvider({ children }: { children: React.ReactNode }) {
     // The seed catalogue remains immutable. Visit records are tracked separately so repeat visits are supported.
   }, [visits]);
 
-  const value = useMemo(() => ({ places: seedPlaces, savedIds, visits, ready, toggleSaved, addVisit }), [savedIds, visits, ready, toggleSaved, addVisit]);
+  const updateVisit = useCallback(async (updatedVisit: Visit) => {
+    const next = visits.map((v) => (v.id === updatedVisit.id ? { ...updatedVisit, updatedAt: new Date().toISOString() } : v));
+    setVisitsState(next);
+    await setVisits(next);
+  }, [visits]);
+
+  const deleteVisit = useCallback(async (visitId: string) => {
+    const next = visits.filter((v) => v.id !== visitId);
+    setVisitsState(next);
+    await setVisits(next);
+  }, [visits]);
+
+  const value = useMemo(
+    () => ({
+      places: seedPlaces,
+      savedIds,
+      visits,
+      ready,
+      toggleSaved,
+      removeSaved,
+      isSaved,
+      addVisit,
+      updateVisit,
+      deleteVisit,
+    }),
+    [savedIds, visits, ready, toggleSaved, removeSaved, isSaved, addVisit, updateVisit, deleteVisit]
+  );
   return <FoodTrailContext.Provider value={value}>{children}</FoodTrailContext.Provider>;
 }
 
