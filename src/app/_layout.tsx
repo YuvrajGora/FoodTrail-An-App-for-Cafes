@@ -1,3 +1,4 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { FoodTrailProvider } from '@/context/FoodTrailContext';
@@ -8,6 +9,7 @@ export default function RootLayout() {
     <FoodTrailProvider>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="place/[id]" />
         <Stack.Screen name="add-visit" options={{ presentation: 'modal' }} />

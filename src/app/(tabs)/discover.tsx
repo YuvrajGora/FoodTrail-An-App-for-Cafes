@@ -6,7 +6,7 @@ import { useFoodTrail } from '@/context/FoodTrailContext';
 import { colors, radius } from '@/theme/colors';
 
 export default function DiscoverScreen() {
-  const { places, savedIds } = useFoodTrail();
+  const { places, savedIds, toggleSaved } = useFoodTrail();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'All' | 'Verified' | 'Pending verification'>('All');
   const results = useMemo(() => places.filter((p) => {
@@ -18,7 +18,7 @@ export default function DiscoverScreen() {
     <TextInput value={query} onChangeText={setQuery} placeholder="Search name, area or cuisine…" placeholderTextColor={colors.muted} style={styles.search} />
     <View style={styles.filters}>{(['All','Verified','Pending verification'] as const).map((f) => <Text key={f} onPress={() => setFilter(f)} style={[styles.filter, filter===f && styles.active]}>{f === 'Pending verification' ? 'To verify' : f}</Text>)}</View>
     <Text style={styles.count}>{results.length} PLACES IN YOUR COLLECTION</Text>
-    {results.slice(0, 100).map((p) => <PlaceCard key={p.id} place={p} saved={savedIds.includes(p.id)} />)}
+    {results.slice(0, 100).map((p) => <PlaceCard key={p.id} place={p} saved={savedIds.includes(p.id)} onToggleSave={toggleSaved} />)}
     {results.length === 0 ? <Text style={styles.empty}>No matches yet. Try another search.</Text> : null}
   </Screen>;
 }
