@@ -1,0 +1,8 @@
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { Screen } from '@/components/Screen';
+import { useFoodTrail } from '@/context/FoodTrailContext';
+import { colors, radius } from '@/theme/colors';
+export default function ProfileScreen(){const {places,savedIds,visits}=useFoodTrail();return <Screen><Text style={styles.title}>Your FoodTrail</Text><Text style={styles.sub}>A personal record of places, plates and memories.</Text><View style={styles.card}><Stat label="PLACES IN COLLECTION" value={places.length}/><Stat label="SAVED TO BUCKET LIST" value={savedIds.length}/><Stat label="VISITS LOGGED" value={visits.length}/><Stat label="VERIFIED ENTRIES" value={places.filter(p=>p.verificationStatus==='Verified').length}/></View><Text style={styles.note}>This starter currently saves bucket-list choices and visit journal entries on this device. Supabase sync, login, photo uploads and live Google Maps integration are part of the next backend setup stage.</Text></Screen>}
+function Stat({label,value}:{label:string;value:number}){return <View style={{gap:4}}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value}</Text></View>}
+const styles=StyleSheet.create({title:{fontSize:30,fontWeight:'900',color:colors.ink,letterSpacing:-1},sub:{fontSize:13,color:colors.muted},card:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:18,gap:18},label:{color:colors.muted,fontSize:9,fontWeight:'900',letterSpacing:1},value:{color:colors.ink,fontSize:23,fontWeight:'900'},note:{color:colors.muted,fontSize:12,lineHeight:19}})

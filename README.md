@@ -1,56 +1,81 @@
-# Welcome to your Expo app 👋
+# FoodTrail — Mobile App Starter
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+FoodTrail is a personal Delhi-NCR restaurant discovery list and food journal. This starter contains:
 
-## Get started
+- Expo Router screen structure for Home, Discover, Bucket List, Map, Journal, Place Details, Add Visit and Profile.
+- A 132-entry seed catalogue exported from the FoodTrail tracker. Each place retains its verification state and source notes.
+- Local device persistence for saved places and visit logs (AsyncStorage).
+- Supabase/Postgres schema with owner-scoped Row Level Security for profiles, saved places, visits and visit photos.
+- An Antigravity implementation brief for the next build pass.
 
-1. Install dependencies
+## Important scope note
+
+This is a working **front-end starter/prototype**, not a released production app. It currently persists saved places and visits on the device. Supabase login/sync, photo uploads, a live Google map, and production testing still need to be connected. Catalogue entries marked `Pending verification` are not confirmed businesses/branches and must not be shown as verified recommendations.
+
+## Recommended setup
+
+1. Install Node.js LTS and Git.
+2. Create a fresh Expo Router app. During the SDK 58 transition, the Expo Router docs indicate SDK 57 when using Expo Go on a physical phone; use the SDK 58 template only if you are using a compatible development build:
 
    ```bash
-   npm install
+   npx create-expo-app@latest FoodTrail --template default@sdk-57
    ```
 
-2. Start the app
+3. Copy the contents of this starter into the generated `FoodTrail` folder, merging `app/`, `src/`, `supabase/`, and the root helper files.
+4. From the project folder, install the app-compatible storage package:
+
+   ```bash
+   npx expo install @react-native-async-storage/async-storage expo-sqlite
+npm install @supabase/supabase-js react-native-url-polyfill
+   ```
+
+   The default Expo Router template includes Expo Router and the Expo icon package. If it does not, run:
+
+   ```bash
+   npx expo install expo-router @expo/vector-icons react-native-safe-area-context react-native-screens expo-linking expo-constants
+   ```
+
+5. Start the app:
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+6. Install Expo Go on an Android phone and scan the QR code. Android is the first target; iOS remains supported by the shared Expo codebase.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Supabase setup (next backend milestone)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in the Supabase SQL Editor.
+3. Import `supabase/seed.sql` to load the current 132-entry catalogue.
+4. Add environment variables to a local `.env` file (never commit real keys):
 
-## Get a fresh project
+   ```env
+   EXPO_PUBLIC_SUPABASE_URL=YOUR_PROJECT_URL
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+   ```
 
-When you're ready, run:
+5. Do not put a Supabase service-role key in a mobile app. The schema allows app users to read the shared place catalogue and only their own profile, saved places, visits and photos.
+
+## Data status
+
+The seed includes 132 candidate entries; 58 rows are marked `Verified` after source checks, and 74 remain pending branch verification. The remaining candidates are intentionally retained as `Pending verification`. A verified status records a name/branch match to the source shown in the tracker; it does not promise that today's menu, prices or opening status will never change.
+
+## Git workflow
+
+Use small, reviewable commits. Before each commit:
 
 ```bash
-npm run reset-project
+git status
+git diff --check
+git diff
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Stage only intended files and use conventional commit messages such as:
 
-### Other setup steps
+- `feat: add FoodTrail home and discovery screens`
+- `feat: add local bucket list and visit journal`
+- `feat: add Supabase schema and row-level security`
+- `fix: validate visit rating and spend inputs`
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Do not commit `.env`, credentials, build output or generated secrets.
