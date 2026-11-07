@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import placesData from '../data/places.json';
 import type { Place, Visit } from '../types';
 import { getSavedPlaceIds, getVisits, setSavedPlaceIds, setVisits } from '../lib/storage';
+import { useAuth } from './AuthContext';
 
 type FoodTrailContextValue = {
   places: Place[];
@@ -20,70 +21,104 @@ const FoodTrailContext = createContext<FoodTrailContextValue | null>(null);
 const seedPlaces = placesData as Place[];
 
 export function FoodTrailProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
+
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [visits, setVisitsState] = useState<Visit[]>([]);
   const [ready, setReady] = useState(false);
 
+  // Reload partitioned storage whenever the active user changes (guest vs authenticated user)
   useEffect(() => {
     let active = true;
-    Promise.all([getSavedPlaceIds(), getVisits()]).then(([saved, recentVisits]) => {
-      if (!active) return;
-      setSavedIds(saved);
-      setVisitsState(recentVisits);
-      setReady(true);
-    }).catch(() => setReady(true));
-    return () => { active = false; };
-  }, []);
 
-  const toggleSaved = useCallback(async (placeId: string) => {
-    let next: string[] = [];
-    setSavedIds((prev) => {
-      next = prev.includes(placeId) ? prev.filter((id) => id !== placeId) : [...prev, placeId];
-      return next;
-    });
-    await setSavedPlaceIds(next);
-  }, []);
+    Promise.all([
+      getSavedPlaceIds(currentUserId),
+      getVisits(currentUserId),
+    ])
+      .then(([saved, recentVisits]) => {
+        if (!active) return;
+        setSavedIds(saved);
+        setVisitsState(recentVisits);
+        setReady(true);
+      })
+      .catch(() => {
+        if (active) setReady(true);
+      });
 
-  const removeSaved = useCallback(async (placeId: string) => {
-    let next: string[] = [];
-    setSavedIds((prev) => {
-      next = prev.filter((id) => id !== placeId);
-      return next;
-    });
-    await setSavedPlaceIds(next);
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [currentUserId]);
 
-  const isSaved = useCallback((placeId: string) => {
-    return savedIds.includes(placeId);
-  }, [savedIds]);
+  const toggleSaved = useCallback(
+    async (placeId: string) => {
+      let next: string[] = [];
+      setSavedIds((prev) => {
+        next = prev.includes(placeId) ? prev.filter((id) => id !== placeId) : [...prev, placeId];
+        return next;
+      });
+      await setSavedPlaceIds(next, currentUserId);
+    },
+    [currentUserId]
+  );
 
-  const addVisit = useCallback(async (visit: Visit) => {
-    let next: Visit[] = [];
-    setVisitsState((prev) => {
-      next = [visit, ...prev];
-      return next;
-    });
-    await setVisits(next);
-    // The seed catalogue remains immutable. Visit records are tracked separately so repeat visits are supported.
-  }, []);
+  const removeSaved = useCallback(
+    async (placeId: string) => {
+      let next: string[] = [];
+      setSavedIds((prev) => {
+        next = prev.filter((id) => id !== placeId);
+        return next;
+      });
+      await setSavedPlaceIds(next, currentUserId);
+    },
+    [currentUserId]
+  );
 
-  const updateVisit = useCallback(async (updatedVisit: Visit) => {
-    let next: Visit[] = [];
-    setVisitsState((prev) => {
-      next = prev.map((v) => (v.id === updatedVisit.id ? { ...updatedVisit, updatedAt: new Date().toISOString() } : v));
-      return next;
-    });
-    await setVisits(next);
-  }, []);
+  const isSaved = useCallback(
+    (placeId: string) => {
+      return savedIds.includes(placeId);
+    },
+    [savedIds]
+  );
 
-  const deleteVisit = useCallback(async (visitId: string) => {
-    let next: Visit[] = [];
-    setVisitsState((prev) => {
-      next = prev.filter((v) => v.id !== visitId);
-      return next;
-    });
-    await setVisits(next);
-  }, []);
+  const addVisit = useCallback(
+    async (visit: Visit) => {
+      let next: Visit[] = [];
+      setVisitsState((prev) => {
+        next = [visit, ...prev];
+        return next;
+      });
+      await setVisits(next, currentUserId);
+    },
+    [currentUserId]
+  );
+
+  const updateVisit = useCallback(
+    async (updatedVisit: Visit) => {
+      let next: Visit[] = [];
+      setVisitsState((prev) => {
+        next = prev.map((v) =>
+          v.id === updatedVisit.id ? { ...updatedVisit, updatedAt: new Date().toISOString() } : v
+        );
+        return next;
+      });
+      await setVisits(next, currentUserId);
+    },
+    [currentUserId]
+  );
+
+  const deleteVisit = useCallback(
+    async (visitId: string) => {
+      let next: Visit[] = [];
+      setVisitsState((prev) => {
+        next = prev.filter((v) => v.id !== visitId);
+        return next;
+      });
+      await setVisits(next, currentUserId);
+    },
+    [currentUserId]
+  );
 
   const value = useMemo(
     () => ({
@@ -100,6 +135,7 @@ export function FoodTrailProvider({ children }: { children: React.ReactNode }) {
     }),
     [savedIds, visits, ready, toggleSaved, removeSaved, isSaved, addVisit, updateVisit, deleteVisit]
   );
+
   return <FoodTrailContext.Provider value={value}>{children}</FoodTrailContext.Provider>;
 }
 

@@ -1,22 +1,107 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
+import { useAuth } from '@/context/AuthContext';
 import { useFoodTrail } from '@/context/FoodTrailContext';
 import { getRestaurantImage } from '@/data/restaurantImages';
 import { colors, radius } from '@/theme/colors';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, isGuest, isConfigured, signIn, signUp, signOut } = useAuth();
   const { places, savedIds, visits } = useFoodTrail();
+
+  // Auth UI state
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [authFeedback, setAuthFeedback] = useState<{ isError: boolean; text: string } | null>(null);
+
+  // User display metadata
+  const userInitials = useMemo(() => {
+    if (!user) return 'FT';
+    const name = user.user_metadata?.full_name || user.user_metadata?.display_name;
+    if (name && typeof name === 'string' && name.trim()) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+      return name.trim().substring(0, 2).toUpperCase();
+    }
+    if (user.email) return user.email.substring(0, 2).toUpperCase();
+    return 'FT';
+  }, [user]);
+
+  const userDisplayName = useMemo(() => {
+    if (!user) return 'FoodTrail Explorer';
+    return (
+      user.user_metadata?.full_name ||
+      user.user_metadata?.display_name ||
+      user.email?.split('@')[0] ||
+      'FoodTrail Explorer'
+    );
+  }, [user]);
+
+  const handleAuthSubmit = async () => {
+    setAuthFeedback(null);
+    setSubmitting(true);
+
+    if (authMode === 'signup') {
+      const res = await signUp({ email, password, displayName });
+      setSubmitting(false);
+      if (res.success) {
+        setAuthFeedback({ isError: false, text: res.message || 'Account created successfully!' });
+        setPassword('');
+        if (!res.requiresEmailConfirmation) {
+          setEmail('');
+          setDisplayName('');
+        }
+      } else {
+        setAuthFeedback({ isError: true, text: res.message || 'Sign up failed.' });
+      }
+    } else {
+      const res = await signIn({ email, password });
+      setSubmitting(false);
+      if (res.success) {
+        setAuthFeedback(null);
+        setEmail('');
+        setPassword('');
+      } else {
+        setAuthFeedback({ isError: true, text: res.message || 'Login failed.' });
+      }
+    }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out? Your journal entries and bookmarks will remain safely saved on your account, and you will return to local guest mode.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            setAuthFeedback(null);
+          },
+        },
+      ]
+    );
+  };
 
   // 1. Total unique establishments visited
   const uniquePlacesVisitedCount = useMemo(() => {
@@ -71,7 +156,6 @@ export default function ProfileScreen() {
 
   // 6. Favourite restaurants (rated 8+ or multiple visits)
   const favouritePlaces = useMemo(() => {
-    // Map places by ID and compute high scores / visit frequencies
     const scoreMap: Record<string, { place: (typeof places)[0]; maxRating: number; count: number }> = {};
 
     visits.forEach((v) => {
@@ -103,16 +187,185 @@ export default function ProfileScreen() {
         {/* User Identity Header */}
         <View style={styles.header}>
           <View style={styles.avatarLarge}>
-            <Text style={styles.avatarText}>FT</Text>
+            <Text style={styles.avatarText}>{userInitials}</Text>
           </View>
           <View style={styles.headerInfo}>
-            <Text style={styles.userName}>FoodTrail Explorer</Text>
-            <Text style={styles.userHandle}>Delhi NCR Dining Journal</Text>
-            <View style={styles.guestBadge}>
-              <Text style={styles.guestText}>LOCAL JOURNAL MODE</Text>
+            <Text style={styles.userName} numberOfLines={1}>
+              {userDisplayName}
+            </Text>
+            <Text style={styles.userHandle} numberOfLines={1}>
+              {user ? user.email : 'Delhi NCR Dining Journal'}
+            </Text>
+            {user ? (
+              <View style={styles.authBadge}>
+                <Ionicons name="cloud-done-outline" size={11} color={colors.accent} />
+                <Text style={styles.authBadgeText}>AUTHENTICATED · CLOUD BACKED</Text>
+              </View>
+            ) : (
+              <View style={styles.guestBadge}>
+                <Text style={styles.guestText}>LOCAL GUEST MODE</Text>
+              </View>
+            )}
+          </View>
+
+          {user ? (
+            <Pressable
+              style={({ pressed }) => [styles.signOutPill, pressed && { opacity: 0.7 }]}
+              onPress={handleSignOut}
+              accessibilityLabel="Sign Out"
+            >
+              <Ionicons name="log-out-outline" size={14} color={colors.muted} />
+              <Text style={styles.signOutPillText}>Sign Out</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* Guest Authentication Card (Sign In / Sign Up) */}
+        {isGuest && isConfigured ? (
+          <View style={styles.authCard}>
+            <View style={styles.authCardTop}>
+              <View style={styles.authIconCircle}>
+                <Ionicons name="cloud-outline" size={18} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.authCardHeading}>Cloud Dining Account</Text>
+                <Text style={styles.authCardDescription}>
+                  Sign in to back up your journal and access visits across devices. Existing local records remain preserved.
+                </Text>
+              </View>
+            </View>
+
+            {/* Segmented Auth Mode Switch */}
+            <View style={styles.authTabRow}>
+              <Pressable
+                style={[styles.authTab, authMode === 'login' && styles.authTabActive]}
+                onPress={() => {
+                  setAuthMode('login');
+                  setAuthFeedback(null);
+                }}
+              >
+                <Text style={[styles.authTabText, authMode === 'login' && styles.authTabTextActive]}>
+                  Sign In
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.authTab, authMode === 'signup' && styles.authTabActive]}
+                onPress={() => {
+                  setAuthMode('signup');
+                  setAuthFeedback(null);
+                }}
+              >
+                <Text style={[styles.authTabText, authMode === 'signup' && styles.authTabTextActive]}>
+                  Create Account
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Feedback Message Banner */}
+            {authFeedback ? (
+              <View
+                style={[
+                  styles.feedbackBanner,
+                  authFeedback.isError ? styles.feedbackBannerError : styles.feedbackBannerSuccess,
+                ]}
+              >
+                <Ionicons
+                  name={authFeedback.isError ? 'alert-circle-outline' : 'checkmark-circle-outline'}
+                  size={16}
+                  color={authFeedback.isError ? colors.orange : colors.accent}
+                />
+                <Text
+                  style={[
+                    styles.feedbackBannerText,
+                    authFeedback.isError ? styles.feedbackBannerTextError : styles.feedbackBannerTextSuccess,
+                  ]}
+                >
+                  {authFeedback.text}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Form Fields */}
+            <View style={styles.authForm}>
+              {authMode === 'signup' ? (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>YOUR NAME / HANDLE</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="e.g. Yuvraj Gora"
+                    placeholderTextColor={colors.muted}
+                    autoCapitalize="words"
+                  />
+                </View>
+              ) : null}
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@domain.com"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <View style={styles.inputLabelRow}>
+                  <Text style={styles.inputLabel}>PASSWORD</Text>
+                  {authMode === 'signup' ? (
+                    <Text style={styles.inputHint}>Min. 6 characters</Text>
+                  ) : null}
+                </View>
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.muted}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword(!showPassword)}
+                    hitSlop={8}
+                    style={styles.eyeButton}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={18}
+                      color={colors.muted}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.authSubmitButton,
+                  submitting && styles.authSubmitButtonDisabled,
+                  pressed && !submitting && { opacity: 0.9 },
+                ]}
+                onPress={handleAuthSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={styles.authSubmitText}>
+                    {authMode === 'login' ? 'Sign In to FoodTrail' : 'Create Cloud Account'}
+                  </Text>
+                )}
+              </Pressable>
             </View>
           </View>
-        </View>
+        ) : null}
 
         {/* Real Statistics Calculated from Local Records */}
         <View style={styles.statsCard}>
@@ -144,7 +397,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Favourite Restaurants Section (if user has high rated visits) */}
+        {/* Favourite Restaurants Section */}
         {favouritePlaces.length > 0 ? (
           <View style={styles.favouritesSection}>
             <View style={styles.sectionHeaderRow}>
@@ -261,14 +514,14 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Architecture & Offline Persistence Protocol Note */}
+        {/* Architecture & Protocol Note */}
         <View style={styles.noteCard}>
           <View style={styles.noteHeader}>
             <Text style={styles.noteIcon}>✦</Text>
             <Text style={styles.noteTitle}>THE FOODTRAIL PROTOCOL</Text>
           </View>
           <Text style={styles.note}>
-            All visit journals, spend tracking, and bucket list bookmarks are stored securely on this device (via AsyncStorage). Supabase Auth (magic link / OTP), cloud multi-device sync, and photo upload pipeline are prepared for the upcoming backend milestone.
+            All visit journals, spend tracking, and bucket list bookmarks are stored securely on this device (partitioned via AsyncStorage) with persistent Supabase session management. Account switching guarantees full local isolation.
           </Text>
         </View>
       </ScrollView>
@@ -322,7 +575,7 @@ const styles = StyleSheet.create({
   },
   userName: {
     color: colors.ink,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
@@ -345,6 +598,201 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.8,
   },
+  authBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.accentSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    marginTop: 2,
+  },
+  authBadgeText: {
+    color: colors.accent,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  signOutPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  signOutPillText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Auth Card Styles
+  authCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
+    gap: 16,
+  },
+  authCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  authIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authCardHeading: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  authCardDescription: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  authTabRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.sm,
+    padding: 3,
+  },
+  authTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: radius.sm - 2,
+  },
+  authTabActive: {
+    backgroundColor: colors.surface,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  authTabText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  authTabTextActive: {
+    color: colors.accent,
+    fontWeight: '800',
+  },
+  feedbackBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: radius.sm,
+  },
+  feedbackBannerError: {
+    backgroundColor: '#FDF0EC',
+    borderWidth: 1,
+    borderColor: '#F5C8BA',
+  },
+  feedbackBannerSuccess: {
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: '#C3DFD3',
+  },
+  feedbackBannerText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  feedbackBannerTextError: {
+    color: colors.orange,
+    fontWeight: '600',
+  },
+  feedbackBannerTextSuccess: {
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  authForm: {
+    gap: 12,
+  },
+  inputGroup: {
+    gap: 5,
+  },
+  inputLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  inputLabel: {
+    color: colors.muted,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  inputHint: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  textInput: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  eyeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  authSubmitButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  authSubmitButtonDisabled: {
+    opacity: 0.6,
+  },
+  authSubmitText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+
+  // Stats Card Styles
   statsCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
